@@ -1,9 +1,9 @@
-import sqlite3
 import re
+import sqlite3
 from datetime import datetime
+from DEFENSE.utils.config import DB_PATH
 
-
-DB_PATH = "../defense.db"
+LOG_LEVELS = ["severe", "error", "warning", "info", "debug", "default"]
 
 
 def init_db() -> None:
@@ -22,6 +22,13 @@ def init_db() -> None:
                 domain TEXT NOT NULL UNIQUE,
                 resolved_ip TEXT NOT NULL UNIQUE,
                 last_verified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                level TEXT NOT NULL,
+                message TEXT NOT NULL
             );
             """
         )
@@ -68,9 +75,23 @@ def insert_ip_mac(ip: str, mac: str) -> bool:
             return False
 
 
-def get_all_ip_mac_bindings():
+def get_ip_mac_bindings(ip: str | None = None, mac: str | None = None):
     with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute("SELECT * FROM ip_mac_bindings")
+        if ip and mac:
+            cursor = conn.execute(
+                "SELECT * FROM ip_mac_bindings WHERE ip_address = ? AND mac_address = ?",
+                (ip, mac),
+            )
+        elif ip:
+            cursor = conn.execute(
+                "SELECT * FROM ip_mac_bindings WHERE ip_address = ?", (ip)
+            )
+        elif mac:
+            cursor = conn.execute(
+                "SELECT * FROM ip_mac_bindings WHERE mac_address = ?", (mac)
+            )
+        else:
+            cursor = conn.execute("SELECT * FROM ip_mac_bindings")
         return cursor.fetchall()
 
 
@@ -92,44 +113,45 @@ def insert_dns_record(domain: str, resolved_ip: str) -> bool:
             return False
 
 
-def get_all_dns_records():
+def get_dns_record(domain: str | None = None, resolved_ip: str | None = None):
     with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute("SELECT * FROM dns_records")
+        if domain and resolved_ip:
+            cursor = conn.execute(
+                "SELECT * FROM dns_records WHERE domain = ? AND resolved_ip = ?",
+                (domain, resolved_ip),
+            )
+        elif domain:
+            cursor = conn.execute(
+                "SELECT * FROM dns_records WHERE domain = ?", (domain,)
+            )
+        elif resolved_ip:
+            cursor = conn.execute(
+                "SELECT * FROM dns_records WHERE resolved_ip = ?", (resolved_ip,)
+            )
+        else:
+            cursor = conn.execute("SELECT * FROM dns_records")
         return cursor.fetchall()
 
 
-def test_db() -> None:
+def write_log(level: str, message: str) -> None:
     with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        print("Tables in database:")
-        for table in tables:
-            print(f"- {table[0]}")
-
-        print("\nSample ip_mac_bindings:")
-        cursor = conn.execute("SELECT * FROM ip_mac_bindings LIMIT 5")
-        for row in cursor.fetchall():
-            print(row)
-
-        print("\nSample dns_records:")
-        cursor = conn.execute("SELECT * FROM dns_records LIMIT 5")
-        for row in cursor.fetchall():
-            print(row)
+        try:
+            conn.execute(
+                "INSERT INTO logs (level, message) VALUES (?, ?)",
+                (level, message),
+            )
+        except sqlite3.Error as e:
+            print(f"Error writing log: {e}")
 
 
-if __name__ == "__main__":
-    init_db()
-    test_db()
-    # Example inserts
-    try:
-        insert_ip_mac("192.168.1.1", "00:1A:2B:3C:4D:5E")
-    except ValueError as e:
-        print(e)
-
-    try:
-        insert_dns_record("example.com", "93.184.216.34")
-    except ValueError as e:
-        print(e)
-
-    print(get_all_ip_mac_bindings())
-    print(get_all_dns_records())
+def get_logs(level: str | None = None):
+    with sqlite3.connect(DB_PATH) as conn:
+        if level:
+            if level not in LOG_LEVELS:
+                raise ValueError(
+                    f"Invalid log level: {level}. Must be one of {LOG_LEVELS}."
+                )
+            cursor = conn.execute("SELECT * FROM logs WHERE level = ?", (level))
+        else:
+            cursor = conn.execute("SELECT * FROM logs")
+        return cursor.fetchall()
