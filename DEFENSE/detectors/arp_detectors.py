@@ -2,7 +2,7 @@ from scapy.all import sniff
 from scapy.layers.l2 import ARP, Ether
 from scapy.all import srp
 from DEFENSE.utils.logger import log
-from DEFENSE.db.database import get_ip_mac_bindings, insert_ip_mac
+from DEFENSE.db.database import get_ip_mac_bindings, insert_ip_mac, init_db
 
 
 def confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac):
@@ -22,19 +22,31 @@ def confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac):
                 to_console=True,
                 level="error",
             )
-    elif existing_ip:
+    elif existing_ip and existing_mac != mac:
+        # If the IP exists but the MAC has changed, log a warning
+        # This indicates a possible ARP spoofing attack
         log(
-            message=f"Possible ARP spoofing detected from scan: {ip} now maps to {mac} (was {existing_ip[0][1]})",
+            message=f"Possible ARP spoofing detected from scan: {ip} now maps to {mac} (was {existing_ip[0][2]})",
             to_db=True,
             to_console=True,
             level="warning",
         )
-    elif existing_mac:
+    elif existing_mac and existing_ip != ip:
+        # If the MAC exists but the IP has changed, log a warning
+        # This indicates a possible ARP spoofing attack
         log(
-            message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_mac[0][0]})",
+            message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_mac[0][1]})",
             to_db=True,
             to_console=True,
             level="warning",
+        )
+    else:
+        # If both IP and MAC exist and match, do nothing
+        log(
+            message=f"IP-MAC binding already exists: {ip} - {mac}",
+            to_db=True,
+            to_console=True,
+            level="debug",
         )
 
 
@@ -79,4 +91,5 @@ def start_live_arp_sniff():
 
 
 if __name__ == "__main__":
+    init_db()  # Ensure the database is initialized
     start_live_arp_sniff()
