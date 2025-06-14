@@ -5,6 +5,39 @@ from DEFENSE.utils.logger import log
 from DEFENSE.db.database import get_ip_mac_bindings, insert_ip_mac
 
 
+def confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac):
+    if not existing_ip and not existing_mac:
+        success = insert_ip_mac(ip, mac)
+        if success:
+            log(
+                message=f"Inserted new IP-MAC binding from scan: {ip} - {mac}",
+                to_db=True,
+                to_console=True,
+                level="info",
+            )
+        else:
+            log(
+                message=f"Failed to insert IP-MAC binding from scan: {ip} - {mac}",
+                to_db=True,
+                to_console=True,
+                level="error",
+            )
+    elif existing_ip:
+        log(
+            message=f"Possible ARP spoofing detected from scan: {ip} now maps to {mac} (was {existing_ip[0][1]})",
+            to_db=True,
+            to_console=True,
+            level="warning",
+        )
+    elif existing_mac:
+        log(
+            message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_mac[0][0]})",
+            to_db=True,
+            to_console=True,
+            level="warning",
+        )
+
+
 def arp_display(pkt):
     if pkt.haslayer(ARP):
         arp_layer = pkt.getlayer(ARP)
@@ -16,36 +49,7 @@ def arp_display(pkt):
         existing_ip = get_ip_mac_bindings(ip=ip)
         existing_mac = get_ip_mac_bindings(mac=mac)
 
-        if not existing_ip and not existing_mac:
-            success = insert_ip_mac(ip, mac)
-            if success:
-                log(
-                    message=f"Inserted new IP-MAC binding: {ip} - {mac}",
-                    to_db=True,
-                    to_console=True,
-                    level="info",
-                )
-            else:
-                log(
-                    message=f"Failed to insert IP-MAC binding: {ip} - {mac}",
-                    to_db=True,
-                    to_console=True,
-                    level="error",
-                )
-        elif existing_ip:
-            log(
-                message=f"Possible ARP spoofing detected: {ip} now maps to {mac} (was {existing_ip[0][1]})",
-                to_db=True,
-                to_console=True,
-                level="warning",
-            )
-        elif existing_mac:
-            log(
-                message=f"Possible ARP spoofing detected: {mac} now maps to {ip} (was {existing_mac[0][0]})",
-                to_db=True,
-                to_console=True,
-                level="warning",
-            )
+        confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac)
 
 
 def arp_scan(subnet: str):
@@ -66,37 +70,13 @@ def arp_scan(subnet: str):
         existing_ip = get_ip_mac_bindings(ip=ip)
         existing_mac = get_ip_mac_bindings(mac=mac)
 
-        if not existing_ip and not existing_mac:
-            success = insert_ip_mac(ip, mac)
-            if success:
-                log(
-                    message=f"Inserted new IP-MAC binding from scan: {ip} - {mac}",
-                    to_db=True,
-                    to_console=True,
-                    level="info",
-                )
-            else:
-                log(
-                    message=f"Failed to insert IP-MAC binding from scan: {ip} - {mac}",
-                    to_db=True,
-                    to_console=True,
-                    level="error",
-                )
-        elif existing_ip:
-            log(
-                message=f"Possible ARP spoofing detected from scan: {ip} now maps to {mac} (was {existing_ip[0][1]})",
-                to_db=True,
-                to_console=True,
-                level="warning",
-            )
-        elif existing_mac:
-            log(
-                message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_mac[0][0]})",
-                to_db=True,
-                to_console=True,
-                level="warning",
-            )
+        confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac)
 
 
-# Sniff ARP packets on the network interface (default: all interfaces)
-sniff(filter="arp", prn=arp_display, store=0)
+def start_live_arp_sniff():
+    """Begin live ARP sniffing on all interfaces."""
+    sniff(filter="arp", prn=arp_display, store=0)
+
+
+if __name__ == "__main__":
+    start_live_arp_sniff()

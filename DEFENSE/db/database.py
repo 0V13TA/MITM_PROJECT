@@ -84,11 +84,11 @@ def get_ip_mac_bindings(ip: str | None = None, mac: str | None = None):
             )
         elif ip:
             cursor = conn.execute(
-                "SELECT * FROM ip_mac_bindings WHERE ip_address = ?", (ip)
+                "SELECT * FROM ip_mac_bindings WHERE ip_address = ?", (ip,)
             )
         elif mac:
             cursor = conn.execute(
-                "SELECT * FROM ip_mac_bindings WHERE mac_address = ?", (mac)
+                "SELECT * FROM ip_mac_bindings WHERE mac_address = ?", (mac,)
             )
         else:
             cursor = conn.execute("SELECT * FROM ip_mac_bindings")
@@ -134,6 +134,8 @@ def get_dns_record(domain: str | None = None, resolved_ip: str | None = None):
 
 
 def write_log(level: str, message: str) -> None:
+    if level not in LOG_LEVELS:
+        raise ValueError(f"Invalid log level: {level}")
     with sqlite3.connect(DB_PATH) as conn:
         try:
             conn.execute(
@@ -151,7 +153,7 @@ def get_logs(level: str | None = None):
                 raise ValueError(
                     f"Invalid log level: {level}. Must be one of {LOG_LEVELS}."
                 )
-            cursor = conn.execute("SELECT * FROM logs WHERE level = ?", (level))
+            cursor = conn.execute("SELECT * FROM logs WHERE level = ?", (level,))
         else:
             cursor = conn.execute("SELECT * FROM logs")
         return cursor.fetchall()
