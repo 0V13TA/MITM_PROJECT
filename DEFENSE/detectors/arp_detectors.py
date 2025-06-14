@@ -22,7 +22,7 @@ def confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac):
                 to_console=True,
                 level="error",
             )
-    elif existing_ip and existing_mac != mac:
+    elif existing_ip and existing_ip[0][2] != mac:
         # If the IP exists but the MAC has changed, log a warning
         # This indicates a possible ARP spoofing attack
         log(
@@ -31,11 +31,11 @@ def confirm_ip_mac_bindings(existing_ip, existing_mac, ip, mac):
             to_console=True,
             level="warning",
         )
-    elif existing_mac and existing_ip != ip:
+    elif existing_mac and existing_ip[0][1] != ip:
         # If the MAC exists but the IP has changed, log a warning
         # This indicates a possible ARP spoofing attack
         log(
-            message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_mac[0][1]})",
+            message=f"Possible ARP spoofing detected from scan: {mac} now maps to {ip} (was {existing_ip[0][1]})",
             to_db=True,
             to_console=True,
             level="warning",
