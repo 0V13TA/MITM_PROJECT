@@ -58,6 +58,7 @@ def restore(destination_ip, source_ip, destination_mac, source_mac):
 
 
 def signal_handler(sig, frame):
+    global target_ip, gateway_ip, target_mac, gateway_mac
     log(
         "\n[!] Detected CTRL+C ! Restoring the network...",
         level="warning",
@@ -70,8 +71,12 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
+def main(args=None):
+    import sys
+    global target_ip, gateway_ip, target_mac, gateway_mac
+    if args is None:
+        args = sys.argv[1:]
+    if len(args) != 2:
         log(
             "Usage: python3 index.py <target_ip> <gateway_ip>",
             level="error",
@@ -80,8 +85,8 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    target_ip = sys.argv[1]
-    gateway_ip = sys.argv[2]
+    target_ip = args[0]
+    gateway_ip = args[1]
 
     log(
         f"[+] Getting MAC address for target {target_ip}...",
@@ -132,3 +137,7 @@ if __name__ == "__main__":
             time.sleep(2)
     except KeyboardInterrupt:
         signal_handler(None, None)
+
+
+if __name__ == "__main__":
+    main()
